@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href='https://fonts.googleapis.com/css?family=Crimson+Text:400,400italic,600' rel='stylesheet' type='text/css'>
+    <meta charset="UTF-8">
+    <title>Resume - John Gallagher</title>
+    <style>
+      body {
+        font-family: "Crimson Text", serif;
+      }
+      a {
+        text-decoration: none;
+        color: black;
+      }
+      p {
+        margin-top: 0
+      }
+      a:hover {
+        color: blue;
+      }
+      h1 {
+        text-align: center;
+        font-variant: small-caps;
+        font-weight: 600;
+        margin-bottom: 0em;
+      }
+      .container {
+        padding-left: 15px;
+        padding-right: 15px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .entry-body {
+        padding-left: 30px;
+        padding-right: 30px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .contact {
+        text-align: center;
+      }
+      .section-head {
+        font-variant: small-caps;
+        border-bottom: 1px solid;
+      }
+      .entry-date {
+        width: 7em;
+      }
+      .entry-co {
+        width: 15em;
+      }
+      .entry-data {
+        float: left;
+        margin-right: 1em;
+        font-weight: 600;
+
+      }
+      .entry-title {
+        clear: both;
+        font-style: italic;
+      }
+
+      @media print {
+        body {
+          margin-top: 0in;
+          font-size: 11pt
+        }
+        h1 { font-size: 16pt }
+        .section-head {
+          margin-bottom: 0;
+        }
+      }
+      @media screen {
+        .section-head {
+          margin-bottom: 0.3em;
+        }
+        .container {
+          width: 40em
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>John Gallagher</h1>
+    <div class="contact">
+      <a href="mailto:jmg2016@columbia.edu">jmg2016@columbia.edu</a> &middot;
+      <a href="http://github.com/slackhappy">github.com/slackhappy</a> &middot;
+      nyc
+    </div>
+    <div class="container">
+      <div class="section">
+        <div class="section-head">
+          Education
+        </div>
+        <!-- M.S. in CS -->
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-data entry-date">
+              9/2010 - 8/2011
+            </div>
+            <div class="entry-data entry-rest">
+              Columbia University Graduate School of Arts and Sciences
+            </div>
+          </div>
+          <div class="entry-title">
+            M.S. in Computer Science
+          </div>
+          <div class="entry-body">
+            <p>
+            Research: Ph.D. track under advisor
+            <a href="http://www.cs.columbia.edu/~junfeng/">Junfeng Yang</a>.
+            Member of the <a href="http://www.ncl.cs.columbia.edu/">Software Systems Lab</a>
+            working on efficient deterministic multithreaded
+            execution of legacy code.<br>
+            Coursework: Parallel Computation, Reliable Computing; GPA 4.13.<br>
+            Received M.S. Teaching Assistant Fellowship, Graduate Research Assistantship.
+            </p>
+          </div>
+        </div>
+        <!-- B.S. in CS -->
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-data entry-date">
+              9/2004 - 5/2008
+            </div>
+            <div class="entry-data entry-rest">
+              Columbia University School of Engineering and Applied Sciences
+            </div>
+          </div>
+          <div class="entry-title">
+            B.S. in Computer Science, minor in Economics
+          </div>
+          <div class="entry-body">
+            <p>
+            Research: Analyzed crosscutting concerns in the Mozilla SpiderMonkey JS engine.<br>
+            Coursework: Data structures, Compilers, OS, Networks, VMs; GPA 3.66 (all) / 3.82 (CS).<br>
+            Received Kosoresow Memorial teaching award for intro CS course TA work.</li>
+            <p>
+          </div>
+        </div>
+      </div> <!-- end education -->
+      <div class="section">
+        <div class="section-head">
+          Work Experience
+        </div>
+        <!-- Foursquare -->
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-data entry-date">
+              8/2011 - Present
+            </div>
+            <div class="entry-data entry-co">
+              Foursquare
+            </div>
+            <div class="entry-data entry-rest">
+              New York, NY
+            </div>
+          </div>
+          <div class="entry-title">
+            Senior Engineer &amp; Lead
+          </div>
+          <div class="entry-body print-indent">
+            <p>Led the redesign of the query processing pipeline and
+            classification strategy in order to understand more complex
+            queries.  Improved autocomplete performance and engagement.</p>
+
+            <p>Created core pieces of Foursquare infrastructure: the
+            application-level API router; SOA libraries and development tools,
+            enabling the product to scale from 5 org-owned services to 30
+            team-owned services in a few months. Built an in-memory timezone
+            and country reverse geocoder (part of open-source
+            <a href="https://github.com/foursquare/twofishes">Twofishes</a>); and
+            an exception-gathering service (open-source
+            <a href="https://github.com/foursquare/exceptionator">Exceptionator</a>).</p>
+
+            <p>Aided teams with architecture guidance and performance advice.</p>
+          </div>
+        </div>
+        <!-- Columbia Research -->
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-data entry-date">
+              9/2010 - 8/2011
+            </div>
+            <div class="entry-data entry-co">
+              Columbia University
+            </div>
+            <div class="entry-data entry-rest">
+              New York, NY
+            </div>
+          </div>
+          <div class="entry-title">
+            Graduate Research Assitant
+          </div>
+          <div class="entry-body">
+            <p>Developed an alias analysis framework in the LLVM compiler to
+            reduce or eliminate the effects of data races of in large,
+            multithreaded C and C++ programs.  Results were used to increase
+            determinism of program executions across a variety of inputs and
+            environments thus avoiding bugs or consistently reproducing
+            them.</p>
+          </div>
+        </div>
+        <!-- Microsoft -->
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-data entry-date">
+              8/2008 - 9/2010
+            </div>
+            <div class="entry-data entry-co">
+              Microsoft
+            </div>
+            <div class="entry-data entry-rest">
+              Redmond, WA
+            </div>
+          </div>
+          <div class="entry-title">
+            Software Development Engineer II
+          </div>
+          <div class="entry-body">
+            <p>Designed and implemented the identity management solution and
+            other features for System Center Configuration Manager 2012,
+            including a system for bootstrapping bidirectional trust on mobile
+            devices in heterogeneous environments. Designed and developed the
+            enterprise power management solution with a small team for System
+            Center Configuration Manager 2007 R3.</p>
+          </div>
+        </div>
+      </div> <!-- End Work Experience -->
+      <div class="section">
+        <div class="section-head">
+          Skills and Interests
+        </div>
+        <div class="entry">
+          <div class="entry-body">
+            <p>
+            Languages: Scala, Python, Java, C.<br>
+            Platforms: Linux, OSX, Windows, Git, MongoDB.<br>
+            Interests: Skiing, biking, puzzle challenge events, connected embedded devices.<br>
+            Teaching: <a href="https://www.scripted.org/">ScriptEd</a> coordinator and volunteer at Foursquare.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

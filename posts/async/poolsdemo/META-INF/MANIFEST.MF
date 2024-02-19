@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Archiver-Version: Plexus Archiver
+Built-By: john.gallagher
+Created-By: Apache Maven 3.8.5
+Build-Jdk: 1.8.0_322
+Main-Class: io.github.slackhappy.poolsdemo.FakeKeyValueServer
+

@@ -1,0 +1,4 @@
+reactor.blockhound.integration.LoggingIntegration
+reactor.blockhound.integration.ReactorIntegration
+reactor.blockhound.integration.RxJava2Integration
+reactor.blockhound.integration.StandardOutputIntegration

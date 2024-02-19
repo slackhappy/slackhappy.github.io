@@ -10,7 +10,7 @@
       }
       a {
         text-decoration: none;
-        color: black;
+        color: darkblue;
       }
       p {
         margin-top: 0
@@ -83,7 +83,7 @@
   <body>
     <h1>John Gallagher</h1>
     <div class="contact">
-      <a href="mailto:jmg2016@columbia.edu">jmg2016@columbia.edu</a> &middot;
+      <a href="mailto:jmg2016@gmail.com">jmg2016@gmail.com</a> &middot;
       <a href="http://github.com/slackhappy">github.com/slackhappy</a> &middot;
       nyc
     </div>
@@ -157,10 +157,27 @@
             </div>
           </div>
           <div class="entry-title">
-            Senior Engineer - Search, Learning, and Intelligence
+            Senior Staff Engineer - Slack AI, Search Infrastructure<br>
+            Staff Engineer - Search, Learning, and Intelligence
           </div>
           <div class="entry-body print-indent">
-            <p>&nbsp;</p>
+            <p> Co-tech-lead on the Slack AI Search team.  Prototyped and developed the
+            <a href="https://slack.com/blog/news/slack-ai-has-arrived">Slack AI Search Answers</a>
+            implementation that launched in Feb 2024.
+            <p> Served as design and tech lead for Slack's
+            <a href="https://www.youtube.com/watch?v=EQ336PTZfhU">new search infrastructure</a>.
+            The new architecture leveraged offline-built indexes and SolrCloud
+            distributed search to scale Slack search to 100s of billions of documents,
+            reduced latency by 3x (avg) to 7x (p95), and a returned a 4.3m annual cost savings.
+
+            Created and co-tech-lead the newly created Search Infrastructure and Backend team.  Onboarded
+            and interviewed new members, <a href="https://issues.apache.org/jira/browse/SOLR-8327">upstreamed</a>
+            <a href="https://issues.apache.org/jira/browse/SOLR-14413">improvements</a> to Solr, collaborated with teams
+            to build their solutions on top of search.
+            <p> Built Computed Data Service, Slack's offline-to-online
+            low-latency distributed key value store, which powers
+            ranking models, analytics, billing, and more.
+
           </div>
         </div>
         <!-- Foursquare -->
@@ -182,22 +199,14 @@
           <div class="entry-body print-indent">
             <p>Led the redesign of Foursquare's local search query processing
             pipeline and classification strategy in order to understand more
-            complex queries.  Aided in the design of a truncation model that
-            removed irrelevant results.  Improved tools to visualize and
-            validate search improvements before we shipped them, and
-            contributed to our competive analysis framework.  Improved
-            autocomplete performance and engagement.</p>
-
-            <p>Created core pieces of Foursquare infrastructure: the
+            complex queries. Improved autocomplete performance and engagement.
+            Created core pieces of Foursquare infrastructure: the
             application-level API router, SOA libraries and development tools,
             enabling the product to scale from 5 org-owned services to 30
-            team-owned services in a few months. Built an in-memory timezone
-            and country reverse geocoder (part of open-source
+            team-owned services in a few months. Built a timezone geocoder (part of open-source
             <a href="https://github.com/foursquare/twofishes">Twofishes</a>); and
             an exception-gathering service (open-source
             <a href="https://github.com/foursquare/exceptionator">Exceptionator</a>).</p>
-
-            <p>Aided teams with architecture guidance and performance advice.</p>
           </div>
         </div>
         <!-- Columbia Research -->
@@ -258,10 +267,9 @@
         <div class="entry">
           <div class="entry-body">
             <p>
-            Languages: Scala, Python, Java, C.<br>
-            Platforms: Linux, OSX, Windows, Git, MongoDB.<br>
-            Interests: Skiing, biking, connected embedded devices.<br>
-            Teaching: <a href="https://www.scripted.org/">ScriptEd</a> coordinator and volunteer at Foursquare.
+            Languages: Hacklang/Scala, Java, Scala, Python, C.<br>
+            Platforms: Scaled data, analysis and search. Linux, macOS, Git.<br>
+            Teaching: <a href="https://www.scripted.org/">ScriptEd</a> coordinator and volunteer while at Foursquare.
             </p>
           </div>
         </div>

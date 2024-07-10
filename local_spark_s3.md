@@ -1,6 +1,6 @@
-# Local Spark With MinIO S3 emulation
+# Local Spark With MinIO S3 emulation, and Hive Metastore
 
-Spark with an S3 filesystem is a pretty common industry setup.  I wrote some notes down for how to create that environment locally for offline development.
+Spark with an S3 filesystem and a hive metastore is a pretty common industry setup.  I wrote some notes down for how to create that environment locally for offline development.
 
 I set this up for spark 3.4.3.
 
@@ -193,8 +193,78 @@ part-00000	part-00002	part-00004	part-00006
 ```
 
 
+## Configuring the a default hive metastore
+A common way to interact with spark is via spark sql.  For internal tables, the hive metastore is used.  The hive metastore can store the tables in the MinIO s3 emulator.
+
+To use the s3 emulator as the warehouse location, add this line to `conf/spark-defaults.conf` in the spark installation:
+
+```
+spark.sql.warehouse.dir=s3a://spark-data/dw
+```
+
+
+The metastore itself, by default, is just a local embedded derby database, stored in the directory where spark is run from.  To make that location less dependent on the run location, add a new, minimal `conf/hive-site.xml` file in the spark installation:
+
+(you can choose an alternative path using variables from http://127.0.0.1:4040/environment/ for substitution)
+
+```xml
+<?xml version="1.0"?>
+<configuration>
+  <property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:derby:;databaseName=${user.home}/hive_metastore_db;create=true</value>
+  </property>
+
+  <property>
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+  </property>
+</configuration>
+```
+
+
+Now, create a table:
+```scala
+$ bin/spark-shell
+
+scala> spark.sql("CREATE TABLE src (key INT, value STRING) USING hive OPTIONS(fileFormat 'parquet')")
+
+scala> val df = spark.read.text("s3a://spark-data/out.txt")
+df: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> val dfWithKey = df.select(lit(1).alias("key"), col("value"))
+dfWithKey: org.apache.spark.sql.DataFrame = [key: int, value: string]
+
+scala> dfWithKey.show
++---+-----+
+|key|value|
++---+-----+
+|  1|  mom|
+|  1|   hi|
++---+-----+
+
+
+scala> dfWithKey.write.insertInto("src")
+24/07/09 20:21:34 WARN ObjectStore: Failed to get database global_temp, returning NoSuchObjectException
+```
+
+
+Finally, it's possible to confirm the data was written:
+
+```
+scala> spark.sql("select * from src").show()
++---+-----+
+|key|value|
++---+-----+
+|  1|  mom|
+|  1|   hi|
++---+-----+
+```
+
 ## Acknowlegedments / Sources
 - [Configuration - Spark Docs](https://spark.apache.org/docs/latest/configuration.html)
+- [Hive Tables - Spark Docs](https://spark.apache.org/docs/latest/sql-data-sources-hive-tables.html)
 - [S3A Configuration - Hadoop Docs](https://hadoop.apache.org/docs/current/hadoop-aws/tools/hadoop-aws/index.html)
 - [Apache Spark AWS S3 Datasource](https://medium.com/@erkansirin/apache-spark-aws-s3-datasource-eb65ee906e64)
+- [Spark - github - test hive-site.xml config](https://github.com/apache/spark/blob/master/sql/hive/src/test/resources/data/conf/hive-site.xml#L63)
 - [MinIO - github](https://github.com/minio/minio?tab=readme-ov-file#gnulinux)

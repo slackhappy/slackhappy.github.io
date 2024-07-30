@@ -1,4 +1,4 @@
-# Spark Loadable Opensearch Snapshots - PoC
+# Spark Loadable Opensearch Snapshots (PoC)
 
 Instead of live-feeding documents from spark or hadoop in bulk, as the [opensearch-hadoop](https://github.com/opensearch-project/opensearch-hadoop) project does,  it would be nice to be able to directly create index snapshots as the output of an offline spark or hadoop job, then load the snapshots directly in a running opensearch cluster.
 
@@ -337,7 +337,7 @@ $ curl localhost:9200/test/_search
 All of my data was present!
 
 
-## Partitioning the offline data into shards (WIP)
+## Partitioning the offline data into shards
 
 The basic concept seems to work.  The most obvious complication is sharding.  A snapshot-based approach is useful when there is lots of data to handle, and searching over that data would benefit from index sharding.
 
@@ -345,4 +345,190 @@ There are a few issues:
 
 1. The data needs to be partitioned so that each task receives data for a specific shard
 2. The snapshots of each shard need to produce a complete index snapshot
-3. Ideally this is done without any coordination between embedded nodes on the offline (spark) side of things.
+
+Ideally this is done without any coordination between embedded nodes on the offline (spark) side of things.
+The basic idea that worked was to (1) leverage Opensearch's document router as a data Partitioner, (2) use a standalone embedded node per partition, snapshot them in independent repositories, then stitch the contents back together.
+
+
+### 1. Splitting the data into Shards with a Partitioner
+
+Opensearch and Elastic use a [hash-based document sharding algorithm](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-routing-field.html).  By default, it uses the document's _id field to select a shard based on a hash, unless an alternative `routing` parameter is provided.
+
+For Opensearch, the implementation is provided in [OperationRouting.java](https://github.com/opensearch-project/OpenSearch/blob/ffa67f9ad7b00739d7471166ba1f2cc5ec1ecbf5/server/src/main/java/org/opensearch/cluster/routing/OperationRouting.java#L444).
+
+
+I made a class that used fake IndexMetadata to set the appropriate values for numberOfShards, and wrapped generateShardId.
+
+```java
+public class ShardPartitioner {
+    private final IndexMetadata indexMetadata;
+
+    public ShardPartitioner(int numShards) {
+         indexMetadata = IndexMetadata.builder("foo")
+                 .settings(Settings.builder().put(IndexMetadata.SETTING_VERSION_CREATED, Version.CURRENT))
+                 .numberOfShards(numShards)
+                 .numberOfReplicas(0)
+                 .build();
+    }
+
+    Integer shardId(String id) {
+        return OperationRouting.generateShardId(indexMetadata, id, null);
+    }
+}
+```
+I did this bit in java because I was having trouble getting spark's version of the scala compiler to recognize the java 21 annotations emitted by the Opensearch project.
+
+I then created a partitioner implementation (and a toPairRDD helper function), that used the generateShardId wrapper:
+
+```scala
+class RowDocumentPartitioner(override val numPartitions: Int, schema: StructType) extends Partitioner {
+  lazy val shardPartitioner = new ShardPartitioner(numPartitions)
+  def toPairRDD(rdd: RDD[Row]): RDD[(Integer, Row)] = {
+    rdd.keyBy(r => Integer.valueOf(shardPartitioner.shardId(r.getString(idFieldIndex))))
+  }
+
+
+  val idFieldIndex: Int = schema.view.zipWithIndex.find({ case (fld, idx) => fld.name == "_id" }) match {
+    case Some((fld, idx)) => idx
+    case _ => throw new RuntimeException(s"${schema} does not contain a _id field")
+  }
+
+  def getPartition(key: Any): Int = key match {
+    case i: Integer => i
+    case _ => throw new RuntimeException(s"Unexpected input type ${key.getClass.getName}")
+  }
+}
+```
+
+Finally, I wrapped partitioned my data, which I previewed above:
+
+```scala
+val partitioner = new RowDocumentPartitioner(8, dfRenamed.schema)
+val rdd = partitioner.toPairRDD(dfRenamed.rdd).partitionBy(partitioner)
+```
+
+
+### 2. Generating a snapshot for each shard
+
+Each RecordWriter handles a partition, so each RecordWriter can have its own embedded Opensearch node, and snapshot to an independent snapshot repo, named after the partition.
+
+The first problem I encountered while running this in a local spark was that the nodes were running concurrently in the same jvm, and fighting over ports.  I adjusted my `runner.onBuild` setup to allocate different ports when needed:
+
+```java
+    private static final AtomicInteger basePortIncrement = new AtomicInteger(0);
+    public OpenSearchOfflineRecordWriter() {
+        OpenSearchRunner.Configs runnerConfig = newConfigs()
+                .numOfNode(1)
+                .disableESLogger()
+                .moduleTypes("org.opensearch.transport.Netty4Plugin,org.opensearch.repositories.s3.S3RepositoryPlugin");
+                // New:
+                .baseHttpPort(9200 + basePortIncrement.getAndAdd(2))
+```
+
+The next problem was figuring out how to generate a "template" to layout the final snapshot, with as little mucking around with opensearch's snapshot logic as possible.
+
+I decided I would make the 0th partition/shard the "master" template.  It would have a index configuration with the actual number of final shards (even though the 0th shard would be the only one with any data).  Every other data partition would have a node that just pretended it was a single-shard node.
+
+I'd use `snapshots/$jobId/$indexName-$n` as my snapshot naming scheme, except that the 0th partition would be named `snapshots/$jobId/$indexName`.
+
+When I saw the first record in a writer, I would know by the key what partition it was.  I added a new IndexCreate command that was called on the first record:
+
+```java
+    if (seenFirstRecord == false) {
+        seenFirstRecord = true;
+        int numShards = 1;
+        if (partition == 0) {
+            // the 0th partition should create all the shards for the other partitions
+            // It will be the "main" snapshot that all other shards get copied into
+            numShards = numPartitions;
+        }
+        CreateIndexResponse res = runner.node().client().admin().indices().prepareCreate(indexName())
+                .setSettings(Settings.builder()
+                    .put("index.number_of_replicas", 0)
+                    .put("index.number_of_shards", numShards)
+                    .put("index.number_of_routing_shards", numShards)
+                    // No need to auto refresh
+                    .put("index.refresh_interval", -1)
+                    // No need for sync persistence
+                    .put("index.translog.durability", "async")
+                )
+                .execute().get();
+    }
+```
+
+A new variable `numPartitions` is passed along via hadoopConfiguration in spark, and then picked up via the `taskAttemptContext` in the `RecordWriter`.  Sadly, I didn't see any guaranteed pre-existing way of obtaining it.
+
+For an example 2 partitions, here are the main generated output files:
+
+```sh
+# test-1 is an example of a non-0 partition snapshot.  These will only have an indices/$uuid/0 output.
+s3a://spark-data/snapshots/$jobId/test-1/index-0
+s3a://spark-data/snapshots/$jobId/test-1/index.latest
+s3a://spark-data/snapshots/$jobId/test-1/meta-i-uuVCXAT2uY4IZf_3aR8g.dat
+s3a://spark-data/snapshots/$jobId/test-1/snap-i-uuVCXAT2uY4IZf_3aR8g.dat
+s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/meta-Rw-PBJEBideXThhvXogU.dat
+
+s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/__IoPwetx6S9CaNMZTZUiq6g
+s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/__XQTndreOSJaffRfJZ_maWw
+s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/index-g5graGS3RHqKNrdvQ99EbA
+s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/snap-i-uuVCXAT2uY4IZf_3aR8g.dat
+
+
+# test is a the the 0th shard data, and the master template that all other shards will get copied to.
+s3a://spark-data/snapshots/$jobId/test/index-0
+s3a://spark-data/snapshots/$jobId/test/index.latest
+s3a://spark-data/snapshots/$jobId/test/meta-aknfa-hgSPGoQ-eiQN0apw.dat
+s3a://spark-data/snapshots/$jobId/test/snap-aknfa-hgSPGoQ-eiQN0apw.dat
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/meta-SA-PBJEBideXThhvXog_.dat
+
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/0/__e9PHXOvPSOupJemM7UISnQ
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/0/__mPck2SuaT4-qFhra0-xo8Q
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/0/index-bg7r7bKoQbWbsAMQnd8HUA
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/0/snap-aknfa-hgSPGoQ-eiQN0apw.dat
+# note it has vacous empty-shard data for the "1" partition (just index- and snap- metadata)
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/index-VUj8o-1iRLCFtL0ZtuatYw
+s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/snap-aknfa-hgSPGoQ-eiQN0apw.dat
+```
+
+After all snapshots have been taken, the contents needs to be moved from the $index-$n partition repositories into the template $index repositories for all 1 to $N partitions/shards, using the names produced by the master partition.
+
+In this example the following moves need to be made:
+
+- The index and snap files from the partitions are renamed according to the index uuid, shard number, snapshot uuid and index generation uuid of the template index.
+- The `__` prefixed files, which are lucene compound index files (.cfe/.cfs) need their parent directories changed to the correct index uuid and shard number, but the file name does not change (it is referenced by name in the content of the index- and snap- metadata files)
+
+```sh
+mv s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/snap-i-uuVCXAT2uY4IZf_3aR8g.dat
+   s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/snap-aknfa-hgSPGoQ-eiQN0apw.dat
+mv s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/__XQTndreOSJaffRfJZ_maWw
+   s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/__XQTndreOSJaffRfJZ_maWw
+mv s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/__IoPwetx6S9CaNMZTZUiq6g
+   s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/__IoPwetx6S9CaNMZTZUiq6g
+mv s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/index-g5graGS3RHqKNrdvQ99EbA
+   s3a://spark-data/snapshots/$jobId/test/indices/1G5-Qwi1RKGP2RGNTs7cnQ/1/index-VUj8o-1iRLCFtL0ZtuatYw
+```
+
+These moves are done in the `commitJob` step of the `OutputFormat`'s `OutputCommitter`, which runs after all shards have completed.
+
+
+This produces the set of files that are expected by the snapshot.
+
+I can test that the snapshot works back on the online cluster:
+
+```sh
+curl -XPUT "http://localhost:9200/_snapshot/my-s3-repository" -H 'Content-Type: application/json' -d'
+{
+  "type": "s3",
+  "settings": {
+    "bucket": "spark-data",
+    "base_path": "snapshots/$jobId/test"
+  }
+}'
+curl -XPOST http://localhost:9200/_snapshot/my-s3-repository/snap/_restore
+{"accepted":true}
+
+curl localhost:9200/test/_search
+{"took":37,"timed_out":false,"_shards":{"total":2,"successful":2,"skipped":0,"failed":0},"hits":{"total":{"value":10000,"relation":"eq"},"max_score":1.0,"hits":[...]}}
+```
+
+A search shows 2 out of 2 shards were successful, and all 10000 entries I wrote were found.

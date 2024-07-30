@@ -3,9 +3,13 @@
 Instead of live-feeding documents from spark or hadoop in bulk, as the [opensearch-hadoop](https://github.com/opensearch-project/opensearch-hadoop) project does,  it would be nice to be able to directly create index snapshots as the output of an offline spark or hadoop job, then load the snapshots directly in a running opensearch cluster.
 
 
-![OpenSearchSnapshotsWriter Arch](posts/spark_loadable_opensearch_snapshots/img/OpenSearchSnapshotWriter.png)
-
 ## Benefits of snapshots vs indexing
+
+
+| Do This | Not This |
+| ------- | -------- |
+| ![OpenSearchSnapshotsWriter Arch](posts/spark_loadable_opensearch_snapshots/img/OpenSearchSnapshotWriterYes.png) |   ![Existing Arch](posts/spark_loadable_opensearch_snapshots/img/OpenSearchSnapshotWriterNo.png)|
+
 
 There are a few benefits to directly creating snapshots rather than writing to a live cluster:
 
@@ -477,7 +481,7 @@ s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/index-
 s3a://spark-data/snapshots/$jobId/test-1/indices/PGs7Yt2xRE6heSfMK5wQuA/0/snap-i-uuVCXAT2uY4IZf_3aR8g.dat
 
 
-# test is a the the 0th shard data, and the master template that all other shards will get copied to.
+# test is the 0th shard data, and the master template that all other shards will get copied to.
 s3a://spark-data/snapshots/$jobId/test/index-0
 s3a://spark-data/snapshots/$jobId/test/index.latest
 s3a://spark-data/snapshots/$jobId/test/meta-aknfa-hgSPGoQ-eiQN0apw.dat

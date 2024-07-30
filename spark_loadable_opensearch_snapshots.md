@@ -2,6 +2,9 @@
 
 Instead of live-feeding documents from spark or hadoop in bulk, as the [opensearch-hadoop](https://github.com/opensearch-project/opensearch-hadoop) project does,  it would be nice to be able to directly create index snapshots as the output of an offline spark or hadoop job, then load the snapshots directly in a running opensearch cluster.
 
+
+![OpenSearchSnapshotsWriter Arch](posts/spark_loadable_opensearch_snapshots/img/OpenSearchSnapshotWriter.png)
+
 ## Benefits of snapshots vs indexing
 
 There are a few benefits to directly creating snapshots rather than writing to a live cluster:

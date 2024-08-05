@@ -539,3 +539,13 @@ curl localhost:9200/test/_search
 ```
 
 A search shows 2 out of 2 shards were successful, and all 10000 entries I wrote were found.
+
+
+## Building out the PoC
+
+After proving out the concept there were a number of changes I wanted to make:
+- I wanted to rely on the spark/hadoop cluster's s3 capabilities, instead of duplicating the s3 authorization, and configuring the OpenSearch s3 repo.  I switched to having the Opensearch write to a local fs repository during snapshot, and had the the hadoop FileSystem be in charge of ferrying the data to s3 (or hdfs, or elswhere).
+- Having the 0 partition be in charge of the snaphot metadata felt a little silly. Instead I decided I'd create a template in the OutputCommiter before tasks started that all tasks (the individual shards) would be in charge of overwriting.
+- Hadoop and Spark use different serialization strategies, and I wanted a system that worked well for both.  I created an independent subproject for the main hadoop libraries that worked in hadoop-native types, and subclassed version for spark with spark's native types.
+
+The project is up on github: [opensearch-hadoop-snapshotwriter](https://github.com/slackhappy/opensearch-hadoop-snapshotwriter).
